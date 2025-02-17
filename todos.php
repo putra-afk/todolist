@@ -24,32 +24,66 @@ $query_get = "SELECT * FROM todos";
 $result_get = mysqli_query($conn, $query_get);
 
 // [POST] Form process to add new todo
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    //
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_todo'])) {
+    $todos = mysqli_real_escape_string($conn, $_POST['todos']);
+
+    if (!empty($todos)) {
+        $query_insert = "INSERT INTO todos (todos_name) VALUES ('$todos')";
+        $result_insert = mysqli_query($conn, $query_insert);
+
+        if ($result_insert) {
+            $msg = 'Todo berhasil ditambahkan';
+            $type = 'green';
+        } else {
+            $msg = 'Todo gagal ditambahkan';
+            $type = 'red';
+        }
+    } else {
+        $msg = 'Todo tidak boleh kosong';
+        $type = 'red';
+    }
 }
 
 // [PUT] Form process to update new todo
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    //
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_todo'])) {
+    $id = isset($_POST['todo_id']) ? (int) $_POST['todo_id'] : 0;
+    $todos = mysqli_real_escape_string($conn, $_POST['todos']);
+
+    if (!empty($todos) && $id > 0) {
+        $query_update = "UPDATE todos SET todos_name = '$todos' WHERE todo_id = $id";
+        $result_update = mysqli_query($conn, $query_update);
+
+        if ($result_update) {
+            $msg = 'Todo berhasil diupdate';
+            $type = 'green';
+        } else {
+            $msg = 'Todo gagal diupdate';
+            $type = 'red';
+        }
+    } else {
+        $msg = 'Todo tidak boleh kosong atau ID tidak valid';
+        $type = 'red';
+    }
 }
 
 // [DELETE] Form process to update new todo
-function delete_todo($conn, $id)
-{
-    $id = ''; // perlu sesuaikan lagi
-    $query_check = "SELECT * FROM todos WHERE id = $id";
-    $result_check = mysqli_query($conn, $query_check);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_todo'])) {
+    $id = isset($_POST['todo_id']) ? (int) $_POST['todo_id'] : 0;
 
-    if (mysqli_num_rows($result_check)) {
-        $query_delete = "DELETE FROM todos WHERE id = $id";
+    if ($id > 0) {
+        $query_delete = "DELETE FROM todos WHERE todo_id = $id";
         $result_delete = mysqli_query($conn, $query_delete);
 
         if ($result_delete) {
-            // logika jika berhasil
-
+            $msg = 'Todo berhasil dihapus';
+            $type = 'green';
         } else {
-            // logika jika gagal
+            $msg = 'Todo gagal dihapus';
+            $type = 'red';
         }
+    } else {
+        $msg = 'ID tidak valid';
+        $type = 'red';
     }
 }
 ?>
@@ -124,6 +158,69 @@ function delete_todo($conn, $id)
     </nav>
     <!-- End Navbar -->
 
+    <div class="container mx-auto px-4 mt-20">
+        <div class="flex justify-center">
+            <div class="w-1/2 bg-white p-4 rounded-lg shadow-lg">
+                <h1 class="text-2xl font-bold text-center">To Do List</h1>
+                <form action="todos.php" method="POST" class="mt-4">
+                    <div class="flex items-center">
+                        <input type="text" name="todos" class="w-full p-2 border rounded-lg" placeholder="Add new todo">
+                        <button type="submit" class="p-2 bg-blue-500 text-white rounded-lg ml-2">Add</button>
+                    </div>
+                </form>
+                <?php if (!empty($msg)): ?>
+                    <div class="mt-4 p-2 bg-<?php echo $type; ?>-200 text-<?php echo $type; ?>-800 rounded-lg">
+                        <?php echo $msg; ?>
+                    </div>
+                <?php endif; ?>
+                <div class="mt-4">
+                    <ul>
+                        <?php while ($row = mysqli_fetch_assoc($result_get)): ?>
+                            <li class="flex items-center justify-between p-2 border-b">
+                                <span><?php echo htmlspecialchars($row['todos_name']); ?></span>
+
+                                <div class="flex items-center">
+                                    <button onclick="openEditModal(<?php echo $row['todo_id']; ?>, '<?php echo htmlspecialchars($row['todos_name']); ?>')" class="p-2 bg-green-500 text-white rounded-lg ml-2">Edit</button>
+                                    <form action="todos.php" method="POST" style="display:inline;">
+                                        <input type="hidden" name="todo_id" value="<?php echo $row['todo_id']; ?>">
+                                        <form action="todos.php" method="POST" style="display:inline;">
+                                            <input type="hidden" name="todo_id" value="<?php echo $row['todo_id']; ?>">
+                                            <button type="submit" name="delete_todo" class="p-2 bg-red-500 text-white rounded-lg ml-2">Delete</button>
+                                        </form>
+                                    </form>
+                                </div>
+                            </li>
+                        <?php endwhile; ?>
+                    </ul>
+                </div>
+                <div id="editModal" class="hidden fixed inset-0 bg-white bg-opacity-50 flex justify-center items-center">
+                    <div class="bg-white p-4 rounded-lg shadow-lg w-1/3">
+                        <h2 class="text-xl font-bold">Edit Todo</h2>
+                        <form action="todos.php" method="POST">
+                            <input type="hidden" name="todo_id" id="edit_todo_id">
+                            <input type="text" name="todos" id="edit_todo_name" class="w-full p-2 border rounded-lg mt-2">
+                            <div class="flex justify-end mt-4">
+                                <button type="button" name="closeEditModal" class="p-2 bg-gray-500 text-white rounded-lg">Cancel</button>
+                                <button type="submit" name="update_todo" class="p-2 bg-blue-500 text-white rounded-lg ml-2">Update</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openEditModal(id, name) {
+            document.getElementById('edit_todo_id').value = id;
+            document.getElementById('edit_todo_name').value = name;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
 </body>
 
